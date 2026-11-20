@@ -180,7 +180,79 @@ sudo mkdir -p /mnt/data
 sudo chmod 777 /mnt/data  # чтобы busybox мог писать без root
 ```
 
-[pv-pvc.yaml](./pv-pvc.yaml)
+pv-pvc.yaml
+
+```
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: task-pv-volume
+spec:
+  storageClassName: ""
+  capacity:
+    storage: 1Gi
+  volumeMode: Filesystem
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  hostPath:
+    path: /mnt/data
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: task-pv-claim
+spec:
+  storageClassName: ""
+  volumeName: task-pv-volume
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: data-exchange-pvc
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: data-exchange-pvc
+  template:
+    metadata:
+      labels:
+        app: data-exchange-pvc
+    spec:
+      containers:
+      - name: writer
+        image: busybox
+        command: ["/bin/sh", "-c"]
+        args:
+          - |
+            while true; do
+              echo "$(date) - Data from PVC writer" >> /data/pvc-data.txt
+              sleep 5
+            done
+        volumeMounts:
+        - name: pvc-storage
+          mountPath: /data
+      - name: reader
+        image: wbitt/network-multitool
+        command: ["/bin/sh", "-c"]
+        args:
+          - |
+            tail -f /data/pvc-data.txt
+        volumeMounts:
+        - name: pvc-storage
+          mountPath: /data
+      volumes:
+      - name: pvc-storage
+        persistentVolumeClaim:
+          claimName: task-pv-claim
+```
 
 В представленном в ДЗ манифесте не указан явно storageClassName. А так как у меня в кластере уже есть default StorageClass, то Kubernetes автоматически подставит его имя в PVC → связывание не произойдёт. Поэтому в манифесте пришлось явно указать storageClassName.
 
