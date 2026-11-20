@@ -1,11 +1,53 @@
-# Домашнее задание к занятию «Хранение в K8s» - `Горелов Николай`
+# Домашнее задание к занятию «Хранение в K8s» - `Дорожкин Артем`
 
 
 ## Решение 1
 
-1. [containers-data-exchange.yaml](./containers-data-exchange.yaml)
+1. containers-data-exchange.yaml
 
-<details><summary>описание пода с контейнерами (`kubectl describe pods data-exchange`)</summary>
+```
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: data-exchange
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: data-exchange
+  template:
+    metadata:
+      labels:
+        app: data-exchange
+    spec:
+      containers:
+      - name: writer
+        image: busybox
+        command: ["/bin/sh", "-c"]
+        args:
+          - |
+            while true; do
+              echo "$(date) - Hello from writer container" >> /shared/data.txt
+              sleep 5
+            done
+        volumeMounts:
+        - name: shared-data
+          mountPath: /shared
+      - name: reader
+        image: wbitt/network-multitool
+        command: ["/bin/sh", "-c"]
+        args:
+          - |
+            tail -f /shared/data.txt
+        volumeMounts:
+        - name: shared-data
+          mountPath: /shared
+      volumes:
+      - name: shared-data
+        emptyDir: {}
+   ```
+
+Описание пода с контейнерами (`kubectl describe pods data-exchange`)
 
 ```console
 
@@ -17,7 +59,7 @@ Namespace:        default
 Priority:         0
 Service Account:  default
 Node:             vm1/192.168.220.139
-Start Time:       Sat, 25 Oct 2025 20:27:46 +0500
+Start Time:       Fri, 20 Nov 2026 20:27:46 +0500
 Labels:           app=data-exchange
                   pod-template-hash=5ddfc8cb4c
 Annotations:      cni.projectcalico.org/containerID: 466f905e7a751e0c0b03179ae639c75a1cf4fcb29e05ab2c49cc63401bba22c4
@@ -45,7 +87,7 @@ Containers:
       done
       
     State:          Running
-      Started:      Sat, 25 Oct 2025 20:27:49 +0500
+      Started:      Fri, 20 Nov 2026 20:27:49 +0500
     Ready:          True
     Restart Count:  0
     Environment:    <none>
@@ -65,7 +107,7 @@ Containers:
       tail -f /shared/data.txt
       
     State:          Running
-      Started:      Sat, 25 Oct 2025 20:27:51 +0500
+      Started:      Fri, 20 Nov 2026 20:27:51 +0500
     Ready:          True
     Restart Count:  0
     Environment:    <none>
@@ -108,32 +150,25 @@ Events:
 
 ```
 
-</details>
-
-
-<details>
 
 ```console
 
 nimda@vm1:2.1$ kubectl logs  data-exchange-5ddfc8cb4c-tmn94 -c reader -f
-Sat Oct 25 15:27:50 UTC 2025 - Hello from writer container
-Sat Oct 25 15:27:55 UTC 2025 - Hello from writer container
-Sat Oct 25 15:28:00 UTC 2025 - Hello from writer container
-Sat Oct 25 15:28:05 UTC 2025 - Hello from writer container
-Sat Oct 25 15:28:10 UTC 2025 - Hello from writer container
-Sat Oct 25 15:28:15 UTC 2025 - Hello from writer container
-Sat Oct 25 15:28:20 UTC 2025 - Hello from writer container
-Sat Oct 25 15:28:25 UTC 2025 - Hello from writer container
-Sat Oct 25 15:28:30 UTC 2025 - Hello from writer container
-Sat Oct 25 15:28:35 UTC 2025 - Hello from writer container
-Sat Oct 25 15:28:40 UTC 2025 - Hello from writer container
-Sat Oct 25 15:28:45 UTC 2025 - Hello from writer container
+Fri Nov 20 15:27:50 UTC 2026 - Hello from writer container
+Fri Nov 20 15:27:55 UTC 2026 - Hello from writer container
+Fri Nov 20 15:28:00 UTC 2026 - Hello from writer container
+Fri Nov 20 15:28:05 UTC 2026 - Hello from writer container
+Fri Nov 20 15:28:10 UTC 2026 - Hello from writer container
+Fri Nov 20 15:28:15 UTC 2026 - Hello from writer container
+Fri Nov 20 15:28:20 UTC 2026 - Hello from writer container
+Fri Nov 20 15:28:25 UTC 2026 - Hello from writer container
+Fri Nov 20 15:28:30 UTC 2026 - Hello from writer container
+Fri Nov 20 15:28:35 UTC 2026 - Hello from writer container
+Fri Nov 20 15:28:40 UTC 2026 - Hello from writer container
+Fri Nov 20 15:28:45 UTC 2026 - Hello from writer container
 
 
 ```
-
-</details>
-
 
 ---
 
