@@ -258,32 +258,37 @@ spec:
 
 Pod запустился и логи читаются:
 
-![](./img/1.png)
+<img width="1287" height="299" alt="image" src="https://github.com/user-attachments/assets/a2c3293c-6414-488c-84da-11195f31eced" />
+
 
 Удаляем Deployment и PVC:
 
-![](./img/2.png)
+<img width="582" height="104" alt="image" src="https://github.com/user-attachments/assets/93816d3f-574b-4f72-bff9-8a1508810e86" />
+
 
 Смотрим что произошло с PV:
 
-![](./img/3.png)
+<img width="1412" height="472" alt="image" src="https://github.com/user-attachments/assets/629bbcd8-fe77-4bab-b7e0-4359ac69e040" />
+
 
 Статус: Released
 Потому что reclaimPolicy: Retain — данные не удаляются автоматически.
 
 Проверяем файл на хосте:
 
-![](./img/4.png)
+cat /mnt/data/pvc-data.txt
+
 
 ### Файл сохранён
 
 Удаляем PV:
 
-![](./img/5.png)
+<img width="407" height="39" alt="image" src="https://github.com/user-attachments/assets/0f34f2e8-68c7-4cd4-a7fe-1b99e557c700" />
 
 Проверьте файл снова:
 
-![](./img/6.png)
+<img width="412" height="61" alt="image" src="https://github.com/user-attachments/assets/5eb000cc-e118-4ff3-96b2-3c1f55fa5f0a" />
+
 
  ### Файл всё ещё на месте!
 
@@ -293,8 +298,86 @@ Pod запустился и логи читаются:
 
 ## Решение 3
 
-[sc.yaml](./sc.yaml)
+sc.yaml
 
-![](./img/7.png)
+```
+---
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: manual-local-storage
+provisioner: kubernetes.io/no-provisioner
+volumeBindingMode: WaitForFirstConsumer
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: task-pv-volume-sc
+spec:
+  storageClassName: manual-local-storage
+  capacity:
+    storage: 1Gi
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  hostPath:
+    path: /mnt/data-sc
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: task-pv-claim-sc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+  storageClassName: manual-local-storage
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: data-exchange-sc
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: data-exchange-sc
+  template:
+    metadata:
+      labels:
+        app: data-exchange-sc
+    spec:
+      containers:
+      - name: writer
+        image: busybox
+        command: ["/bin/sh", "-c"]
+        args:
+          - |
+            while true; do
+              echo "$(date) - From SC writer" >> /data/sc-data.txt
+              sleep 5
+            done
+        volumeMounts:
+        - name: sc-storage
+          mountPath: /data
+      - name: reader
+        image: wbitt/network-multitool
+        command: ["/bin/sh", "-c"]
+        args:
+          - |
+            tail -f /data/sc-data.txt
+        volumeMounts:
+        - name: sc-storage
+          mountPath: /data
+      volumes:
+      - name: sc-storage
+        persistentVolumeClaim:
+          claimName: task-pv-claim-sc
+
+```
+
+<img width="2030" height="520" alt="image" src="https://github.com/user-attachments/assets/a717b7fc-e368-468b-a43f-5990a47f544f" />
 
 ---
